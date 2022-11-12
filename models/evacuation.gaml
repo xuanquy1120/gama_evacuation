@@ -33,6 +33,7 @@ global {
 	int live;
 	
 	bool check_water_body;
+	bool check_water_embankments;
 	
 	file road_file <- file("../includes/roads.shp");
 	file water_buildings <- file("../includes/water in buildings.shp");
@@ -52,10 +53,8 @@ global {
         create natural from: naturals ;
         create embankment from: embankments ;
 		create road from:road_file;
-
 		create water_building from: water_buildings;
 		create green_building from: green_buildings;
-		create crisis_manager;
 		road_network <- as_edge_graph(road);
 
 	}
@@ -68,6 +67,7 @@ global {
 	action polygon_embankment{
 		if (!check_water_body){
 			create hazard from: water_body;
+			check_water_embankments <- true;
 			write "hazard has been created";
 		}else{
 			write "created hazard";
@@ -75,21 +75,33 @@ global {
 	}
 	
 	action create_point_polygon{
+		if(check_water_embankments){
+		
+		write "created hazard";
+		}else{
 			create hazard number:1 {
 			location<-#user_location;
 			write #user_location;
 			check_water_body <- true;
+			
 		}
-		
+		}
+			
 	}
 	action create_inhabitant{
 		if(any(evacuation_point)!= nil and any(hazard) != nil){
-			list<building> id_buildings <- building where (each.id=0);
-			create inhabitant number:nb_of_people/10 {
-			location <-any_location_in(one_of(id_buildings));
-			safety_point <- any(evacuation_point);
-			perception_distance <- rnd(min_perception_distance, max_perception_distance);
+			if(any(inhabitant)= nil){
+				list<building> id_buildings <- building where (each.id=0);
+				create inhabitant number:nb_of_people/10 {
+				location <-any_location_in(one_of(id_buildings));
+				safety_point <- any(evacuation_point);
+				perception_distance <- rnd(min_perception_distance, max_perception_distance);
+				}
+				create crisis_manager;
+			}else{
+				write "created inhabitant";
 			}
+			
 		}else{
 			write "you must create evacuation point and point hazard";
 		}
@@ -155,7 +167,7 @@ species crisis_manager {
 		// For stage strategy
 		int modulo_stage <- length(inhabitant) mod nb_stages; 
 		nb_per_stage <- int(length(inhabitant) / nb_stages) + (modulo_stage = 0 ? 0 : 1);
-		
+		write nb_per_stage;
 		alert_range <- (time_before_hazard#mn - time_after_last_stage#mn) / nb_stages;
 	}
 	
@@ -255,7 +267,7 @@ species inhabitant skills:[moving] {
 	// The exit point they choose to reach
 	evacuation_point safety_point;
 	// How fast inhabitant can run
-	float speed <- 10#km/#h;
+	float speed <- 5#km/#h;
 	
 	/*
 	 * Am I drowning ?
@@ -387,7 +399,12 @@ experiment "Run" {
 //   			species my_species aspect:base;
 			
 		}
-		
+		display "Chart" {
+			chart "Evac" type: series {
+				data "#Survivors" value: live*10 color: #blue;
+				data "#Casualties" value: casualties*10 color: #red;
+			}
+		}
 		
 //		monitor "Number of casualties" value:casualties*10;
 //		monitor "Number of live" value: live*10;
