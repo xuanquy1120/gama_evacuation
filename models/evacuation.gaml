@@ -32,6 +32,8 @@ global {
 	int casualties;
 	int live;
 	
+	bool check_water_body;
+	
 	file road_file <- file("../includes/roads.shp");
 	file water_buildings <- file("../includes/water in buildings.shp");
 	file buildings <- file("../includes/building house 4.shp");
@@ -45,32 +47,51 @@ global {
 	// Graph road
 	graph road_network;
 	
-	
-	
 	init {
  		create building from: buildings with:[id::int(read("id"))];
         create natural from: naturals ;
         create embankment from: embankments ;
 		create road from:road_file;
-		create hazard from: water_body;
+
 		create water_building from: water_buildings;
 		create green_building from: green_buildings;
 		create crisis_manager;
-		
 		road_network <- as_edge_graph(road);
-		
+
 	}
 	
 	// Stop the simulation when everyone is either saved :) or dead :(
 	reflex stop_simu when:inhabitant all_match (each.saved or each.drowned) {
 		do pause;
+	}	
+		
+	action polygon_embankment{
+		if (!check_water_body){
+			create hazard from: water_body;
+			write "hazard has been created";
+		}else{
+			write "created hazard";
+		}
 	}
-	action create_people{
-		list<building> id_buildings <- building where (each.id=0);
-		create inhabitant number:nb_of_people/10 {
+	
+	action create_point_polygon{
+			create hazard number:1 {
+			location<-#user_location;
+			write #user_location;
+			check_water_body <- true;
+		}
+		
+	}
+	action create_inhabitant{
+		if(any(evacuation_point)!= nil and any(hazard) != nil){
+			list<building> id_buildings <- building where (each.id=0);
+			create inhabitant number:nb_of_people/10 {
 			location <-any_location_in(one_of(id_buildings));
 			safety_point <- any(evacuation_point);
 			perception_distance <- rnd(min_perception_distance, max_perception_distance);
+			}
+		}else{
+			write "you must create evacuation point and point hazard";
 		}
 	}
 	action create_point_evacution {
@@ -79,11 +100,6 @@ global {
 	}
 }
 
-//species my_species {
-//    aspect base {
-//        draw triangle(40) color:#red;
-//    }
-//}
 
 species water_building {
     string type; 
@@ -352,15 +368,17 @@ experiment "Run" {
 	parameter "Number of people" var:nb_of_people init:122750 min:10000 max:200000 category:"Initialization";
 	output {
 		display my_display type:opengl{ 
-			event  "p"  action: create_point_evacution;
-			event  "a"  action: create_people;
-			species inhabitant;
-			species evacuation_point aspect:default;
+			
+			event  "q"  action: create_point_evacution;
+			event  "w" action: create_point_polygon;
+			event  "e" action: polygon_embankment;
+			event  "r"  action: create_inhabitant;
 			species road;
 			species hazard;
+			species inhabitant;
+			species evacuation_point aspect:default;
 			species water_building;
 			species building;
-//			species natural;
 			species embankment;
 			species green_building;
 			graphics "my new layer" { 
@@ -369,6 +387,7 @@ experiment "Run" {
 //   			species my_species aspect:base;
 			
 		}
+		
 		
 //		monitor "Number of casualties" value:casualties*10;
 //		monitor "Number of live" value: live*10;
