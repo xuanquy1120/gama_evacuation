@@ -76,18 +76,21 @@ global {
 	
 	action create_point_polygon{
 		if(check_water_embankments){
-		
-		write "created hazard";
+			write "created hazard";
 		}else{
-			create hazard number:1 {
-			location<-#user_location;
-			write #user_location;
-			check_water_body <- true;
-			
-		}
+			if(any(embankment) overlaps #user_location){
+					create hazard number:1 {
+					location<-#user_location;
+					write #user_location;
+					check_water_body <- true;
+					}
+				}else{
+					write "you must click on embankment";
+				}	
 		}
 			
 	}
+	
 	action create_inhabitant{
 		if(any(evacuation_point)!= nil and any(hazard) != nil){
 			if(any(inhabitant)= nil){
@@ -106,10 +109,12 @@ global {
 			write "you must create evacuation point and point hazard";
 		}
 	}
+	
 	action create_point_evacution {
 		create evacuation_point number:1 with: [location:#user_location] ;
 		 write  #user_location;
 	}
+	
 }
 
 
