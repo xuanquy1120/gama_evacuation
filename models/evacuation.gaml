@@ -34,6 +34,8 @@ global {
 	
 	bool check_water_body;
 	bool check_water_embankments;
+	bool check_evacuation_point;
+	bool check_evacuation;
 	
 	file road_file <- file("../includes/roads.shp");
 	file water_buildings <- file("../includes/water in buildings.shp");
@@ -42,6 +44,7 @@ global {
 	file embankments <- file("../includes/embankment.shp");
 	file water_body <- file("../includes/embankment.shp");
 	file naturals <- file("../includes/naturals.shp");
+	file evac_points <- file("../includes/evacuation2.shp");
 
 	geometry shape <- envelope(envelope(buildings));
 	
@@ -63,20 +66,22 @@ global {
 	reflex stop_simu when:inhabitant all_match (each.saved or each.drowned) {
 		do pause;
 	}	
+	
+
 		
 	action polygon_embankment{
 		if (!check_water_body){
 			create hazard from: water_body;
 			check_water_embankments <- true;
-			write "hazard has been created";
-		}else{
 			write "created hazard";
+		}else{
+			write "have been created hazard";
 		}
 	}
 	
 	action create_point_polygon{
 		if(check_water_embankments){
-			write "created hazard";
+			write "have been created hazard";
 		}else{
 			if(any(embankment) overlaps #user_location){
 					create hazard number:1 {
@@ -86,7 +91,7 @@ global {
 					}
 				}else{
 					write "you must click on embankment";
-				}	
+			}	
 		}
 			
 	}
@@ -99,10 +104,12 @@ global {
 				location <-any_location_in(one_of(id_buildings));
 				safety_point <- any(evacuation_point);
 				perception_distance <- rnd(min_perception_distance, max_perception_distance);
+				
 				}
 				create crisis_manager;
-			}else{
 				write "created inhabitant";
+			}else{
+				write "have been created inhabitant";
 			}
 			
 		}else{
@@ -110,9 +117,26 @@ global {
 		}
 	}
 	
+	action create_evacution2{
+		if(check_evacuation_point){
+			write  "have been created evacuation";
+		}else{
+			create evacuation_point from:evac_points;
+			check_evacuation<- true;
+		 	write  "created evacuation";
+		}
+		
+	}
+	
 	action create_point_evacution {
-		create evacuation_point number:1 with: [location:#user_location] ;
-		 write  #user_location;
+		if(check_evacuation){
+			write  "have been created evacuation";
+		}else{
+			create evacuation_point number:1 with: [location:#user_location] ;
+			check_evacuation_point<-true;
+			write  #user_location;
+		}
+		
 	}
 	
 }
@@ -140,8 +164,8 @@ species embankment {
     string type; 
     rgb color <- #orange  ;
     
-    aspect base {
-    draw shape color: color ;
+    aspect default {
+    draw shape color:check_water_embankments ? #blue:color ;
     }
 }
 
@@ -172,7 +196,6 @@ species crisis_manager {
 		// For stage strategy
 		int modulo_stage <- length(inhabitant) mod nb_stages; 
 		nb_per_stage <- int(length(inhabitant) / nb_stages) + (modulo_stage = 0 ? 0 : 1);
-		write nb_per_stage;
 		alert_range <- (time_before_hazard#mn - time_after_last_stage#mn) / nb_stages;
 	}
 	
@@ -387,9 +410,10 @@ experiment "Run" {
 		display my_display type:opengl{ 
 			
 			event  "q"  action: create_point_evacution;
-			event  "w" action: create_point_polygon;
-			event  "e" action: polygon_embankment;
-			event  "r"  action: create_inhabitant;
+			event  "w" action: create_evacution2;
+			event  "e" action: create_point_polygon;
+			event  "r" action: polygon_embankment;
+			event  "t"  action: create_inhabitant;
 			species road;
 			species hazard;
 			species inhabitant;
